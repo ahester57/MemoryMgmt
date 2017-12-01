@@ -52,7 +52,7 @@ int gettableshmid(const key_t shmkey);
 int getclockshmid_ro(const key_t shmkey);
 //int getdispatchshmid_ro(const key_t shmkey);
 oss_clock_t* attachshmclock(const int shmid);
-resource_table* attachshmtable(const int shmid);
+page_table* attachshmtable(const int shmid);
 void setsembuf(struct sembuf *s, int n, int op, int flg);
 int sendmessage(const int msgid, const long pid,
 		const oss_clock_t endtime, const oss_clock_t clock);

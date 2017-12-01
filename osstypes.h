@@ -4,7 +4,8 @@
 #define LINESIZE 256
 #define BILLION 1000000000
 #define MAXPROCESSES 18
-#define NUMRESOURCES 20
+#define NUMPAGES 256 
+#define PAGESIZE 1024
 
 // for message queues
 typedef struct
@@ -31,31 +32,17 @@ typedef struct
 	int done;
 } pxs_cb_t;
 
-// resource descriptor
 typedef struct
 {
-	unsigned int requests[MAXPROCESSES];
-	unsigned int allocation[MAXPROCESSES];
-	unsigned int release[MAXPROCESSES];
-	int issharable;
-	int instances;
-	int available;
-} resource_dt;
-
-// resource table
-typedef struct
-{
-	resource_dt table[NUMRESOURCES];	
-} resource_table;
-
-typedef struct
-{
-	char data[1024];
+	char data[PAGESIZE];
+	int ref_bit;
+	int dirty_bit;
+	int valid_bit;
 } page_frame;
 
 typedef struct
 {
-	page_frame tabele[256];
+	page_frame table[NUMPAGES];
 } page_table;
 
 #endif

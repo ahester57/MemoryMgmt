@@ -32,7 +32,7 @@ static int msg_id;
 static int shm_clock_id;
 static int shm_table_id;
 static oss_clock_t* shm_clock_addr;
-static resource_table* shm_table_addr;
+static page_table* shm_table_addr;
 
 // Initializes semaphore with id, num, and value
 // returns -1 on failure
@@ -86,7 +86,7 @@ getclockshmid(const key_t shmkey)
 int
 gettableshmid(const key_t shmkey)
 {
-	shm_table_id = shmget(shmkey, sizeof(pxs_cb_t), PERM|IPC_CREAT);
+	shm_table_id = shmget(shmkey, sizeof(page_table), PERM|IPC_CREAT);
 	if (shm_table_id == -1) {
 		return -1;
 	}
@@ -100,15 +100,6 @@ getclockshmid_ro(const key_t shmkey)
 	return shmget(shmkey, sizeof(oss_clock_t), RPERM);
 }
 
-/*
-// gets shared memory (read only), returns -1 on error and shmid on success
-int
-getdispatchshmid_ro(const key_t shmkey)
-{
-	return shmget(shmkey, sizeof(pxs_cb_t), RPERM);
-}
-*/
-
 // attach system clock to shared memory segment, return -1 on error
 oss_clock_t*
 attachshmclock(const int shmid)
@@ -121,10 +112,10 @@ attachshmclock(const int shmid)
 }
 
 // attach dispatch to shared memory segment, return -1 on error
-resource_table*
+page_table*
 attachshmtable(const int shmid)
 {
-	shm_table_addr = (resource_table*)shmat(shmid, NULL, 0);
+	shm_table_addr = (page_table*)shmat(shmid, NULL, 0);
 	if (shm_table_addr == (void*)-1) {
 		return (void*)-1;
 	}

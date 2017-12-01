@@ -40,7 +40,7 @@ $Author: o1-hester $
 #include "osstypes.h"
 #include "ipchelper.h"
 #include "sighandler.h"
-#include "deadlock.h"
+#include "memory.h"
 #define BOUND 250000
 #define FILEPERMS (O_WRONLY | O_TRUNC | O_CREAT)
 
@@ -53,7 +53,7 @@ struct sembuf logmutex[2];
 oss_clock_t calcendtime(oss_clock_t clock, int quantum);
 oss_clock_t calcusedtime(oss_clock_t start, oss_clock_t clock);
 oss_clock_t* initsharedclock(const key_t shmkey);
-resource_table* initsharedtable(const key_t diskey);
+page_table* initsharedtable(const key_t diskey);
 int sem_wait();
 int sem_signal();
 int log_wait();
@@ -95,13 +95,13 @@ main (int argc, char** argv)
 		perror("USER: Failed to attach shared memory.");	
 		return 1;
 	}
-	resource_table* table = initsharedtable(diskey);
+	page_table* table = initsharedtable(diskey);
 	if (table == (void*)-1) {
 		perror("USER: Failed to attach shared memory.");	
 		return 1;
 	}
 
-	/***************** Set up semaphores ***********/
+	/***************** Set up semaphopage ***********/
 	if (initsemaphores(skey) == -1) {
 		perror("USER: Failed to setup semaphores.");
 		return 1;
@@ -200,19 +200,19 @@ main (int argc, char** argv)
 			return 1;
 		}
 	}
-	// request some resource
+	// request some page
 	if ((nextreq.sec <= clock->sec && nextreq.nsec <= clock->nsec)
 		|| (nextreq.sec < clock->sec)) {
-		// pick a resource
-		int reqnum = (int)rand() % NUMRESOURCES;
-		if (requestresource(table, reqnum, pid) == -1) {
-			fprintf(stderr,"Failed to request resource.\n");
+		// pick a page
+		int reqnum = (int)rand() % NUMPAGES;
+		if (requestpage(table, reqnum, pid) == -1) {
+			fprintf(stderr,"Failed to request page.\n");
 		}
 		if (log_wait() == -1) {
 			return 1;
 		}
-		fprintf(stderr,"USER: %ld requests res %d.\n", pid, reqnum);
-		dprintf(logf,"USER: %ld requests res %d.\n", pid, reqnum);
+		fprintf(stderr,"USER: %ld requests page %d.\n", pid, reqnum);
+		dprintf(logf,"USER: %ld requests page %d.\n", pid, reqnum);
 		if (log_signal() == -1) {
 			return 1;
 		}
@@ -320,7 +320,7 @@ initsharedclock(const key_t shmkey)
 	return attachshmclock(shmid);
 }
 
-resource_table*
+page_table*
 initsharedtable(const key_t diskey)
 {
 	int shmid = gettableshmid(diskey);
@@ -330,7 +330,7 @@ initsharedtable(const key_t diskey)
 	return attachshmtable(shmid);
 }
 
-/***** NOTE about semaphores *****/
+/***** NOTE about semaphopage *****/
 /* I do NOT log every time sem is waited on
  * and acquired. That would be ridiculous. Thanks. */ 
 

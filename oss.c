@@ -52,7 +52,7 @@ $Author: o1-hester $
 #include "osstypes.h"
 #include "ipchelper.h"
 #include "sighandler.h"
-#include "deadlock.h"
+#include "memory.h"
 #define FILEPERMS (O_WRONLY | O_TRUNC | O_CREAT)
 
 // id and operations for semaphores
@@ -72,7 +72,7 @@ void* msgthread(void* args);
 int initsemaphores(int semid);
 int initsighandlers();
 oss_clock_t* initsharedclock(const int shmid);
-resource_table* initsharedtable(const int shmid);
+page_table* initsharedtable(const int shmid);
 //print usage/error
 void printusage();
 void printopterr(const char optopt);
@@ -224,6 +224,7 @@ main (int argc, char** argv)
 		return 1;
 	}	
 	page_table* table = initsharedtable(tabid);
+	printf("yooooooooo\n");
 	if (table == (void*)-1) {
 		perror("OSS: Failed to attach shared memory.");	
 		return 1;
@@ -586,31 +587,26 @@ initsharedclock(const int shmid)
 }
 
 // initialize shared memory, return -1 on error
-resource_table*
+page_table*
 initsharedtable(const int shmid)
 {
-	resource_table* table;
+	page_table* table;
 	table = attachshmtable(shmid);
 	if (table == (void*)-1) {
 		// failed to init shm
 		return (void*)-1;
 	}
 	int i,j;
-	for (i = 0; i < NUMRESOURCES; i++) {
-		resource_dt newrsc;
+	for (i = 0; i < NUMPAGES; i++) {
+		page_frame newpage;
 		for (j = 0; j < MAXPROCESSES; j++) {
-			newrsc.requests[j] = -1;
-			newrsc.allocation[j] = -1;
-			newrsc.release[j] = -1;
+			newpage.ref_bit = 0;
+			newpage.dirty_bit = 0;
+			newpage.valid_bit = 0;
 		}
-		if ( (int)rand() % 10 < 2 )
-			newrsc.issharable = 1;
-		else
-			newrsc.issharable = 0;
-		newrsc.instances = (int)rand() % 10 + 1;
-		newrsc.available = newrsc.instances;
-		table->table[i] = newrsc;
+		table->table[i] = newpage;
 	}
+	printf("yooooooooo\n");
 	return table;
 }
 
