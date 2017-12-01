@@ -42,7 +42,7 @@ $Author: o1-hester $
 #include "sighandler.h"
 #include "memory.h"
 #define BOUND 250000
-#define FILEPERMS (O_WRONLY | O_TRUNC | O_CREAT)
+#define FILEPERMS (O_WRONLY | O_CREAT)
 
 // id and operations for semaphores
 int semid;
@@ -123,7 +123,7 @@ main (int argc, char** argv)
 
 	// open log file
 	char* fname = "child.log";
-	int logf = open(fname, FILEPERMS, PERM);
+	int logf = open(fname, FILEPERMS, PERM | O_SYNC);
 	if (logf == -1) {
 		perror("OSS: Could not open log file:");
 		return 1;
@@ -159,7 +159,7 @@ main (int argc, char** argv)
 	}
 
 
-	/********* Get values from pxs cntl block ******/
+	/********* Wait for you time ******/
 	
 	while (!((nextreq.sec <= clock->sec && nextreq.nsec <= clock->nsec)
 		|| (nextreq.sec < clock->sec))) {};
@@ -202,8 +202,8 @@ main (int argc, char** argv)
 		}
 		sprintf(msg, "USER: [%ld] second up\n", pid);
 		fprintf(stderr, msg);
-		//write(logf, msg, 32);
-	//	fsync(logf);
+		write(logf, msg, 25);
+		fsync(logf);
 		free(msg);
 		if (log_signal() == -1) {
 			return 1;
@@ -220,11 +220,26 @@ main (int argc, char** argv)
 		if (log_wait() == -1) {
 			return 1;
 		}
-		msg = (char*)malloc(sizeof(char) * 32);
-		sprintf(msg, "USER: [%ld] request byte: %d\n",pid,address);
+		msg = (char*)malloc(sizeof(char) * 64);
+		sprintf(msg, "USER: [%ld] request byte: %d\n\0",pid,address);
 		fprintf(stderr, msg);
-	//	write(logf, msg, 32);
-	//	fsync(logf);
+		float a = address / 100000;
+		int p;
+		if (a >= 1.0) {
+			p = 7;
+		} else {
+			a = address % 100000 / 10000;
+			if (a >= 1)
+				p = 6;
+			else {
+				a = address % 10000 / 1000;
+				if (a >= 1)
+					p = 5;
+			}
+		}
+		int asd = 27 + p;
+		write(logf, msg, asd + 3);
+		fsync(logf);
 		free(msg);
 		if (log_signal() == -1) {
 			return 1;
@@ -259,7 +274,7 @@ main (int argc, char** argv)
 			msg = (char*)malloc(sizeof(char) * 32);
 			sprintf(msg, "USER: [%ld] I'm done.\n", pid);
 			fprintf(stderr, msg);
-			write(logf, msg, 32);
+			write(logf, msg, 25);
 			fsync(logf);
 			free(msg);
 			if (log_signal() == -1) {

@@ -374,7 +374,7 @@ updateclock(oss_clock_t* clock)
 {
 	if (clock == NULL)
 		return;
-	clock->nsec += 10;
+	clock->nsec += 25;
 	if (clock->nsec >= BILLION) {
 		clock->sec += 1;
 		clock->nsec = 0;
