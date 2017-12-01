@@ -242,3 +242,38 @@ detachandremove(const int shmid, void* shmaddr)
 	return -1;
 }
 
+// calculates the time at which child terminates
+oss_clock_t
+calcendtime(oss_clock_t clock, int quantum)
+{
+	int s = clock.sec;
+	int ns = clock.nsec;
+	ns += quantum;
+	if (ns >= BILLION) {
+		s++;
+		ns = ns % BILLION;
+	}
+	oss_clock_t endtime;
+	endtime.sec = s;
+	endtime.nsec = ns;
+	return endtime;	
+}
+
+// calculate used cpu time
+oss_clock_t
+calcusedtime(oss_clock_t start, oss_clock_t clock)
+{
+	int s = clock.sec;
+	int ns = clock.nsec;
+	oss_clock_t usedtime;
+	if (start.sec == s) {
+		usedtime.sec = 0;
+		usedtime.nsec = ns - start.nsec;
+	} else {
+		// add support for > 1 sec	
+		usedtime.sec = 0;
+		usedtime.nsec = (BILLION - start.nsec) + clock.nsec;	
+	}
+	return usedtime;
+}
+

@@ -50,8 +50,6 @@ struct sembuf mutex[2];
 struct sembuf msgsignal[1];
 struct sembuf logmutex[2];
 
-oss_clock_t calcendtime(oss_clock_t clock, int quantum);
-oss_clock_t calcusedtime(oss_clock_t start, oss_clock_t clock);
 oss_clock_t* initsharedclock(const key_t shmkey);
 page_table* initsharedtable(const key_t diskey);
 int sem_wait();
@@ -68,7 +66,6 @@ int initsighandler();
 int
 main (int argc, char** argv)
 {
-	fprintf(stderr, "yo\n");
 	// get keys from file
 	key_t mkey, skey, shmkey, diskey;
 	mkey = ftok(KEYPATH, MSG_ID);
@@ -132,29 +129,28 @@ main (int argc, char** argv)
 		return 1;
 	}
 
-	/************** start loop ********************/
-	//int Bwhatisthisforanyway = (int)rand() % BOUND;
-	int reqinterval;
 	// flags
 	int complete = 0;
 	int overonesec = 0;
+	char* msg;
 	// clock stuff
 	long int quantum = BILLION * 2;
 	oss_clock_t start;
 	start.sec = clock->sec;
 	start.nsec = clock->nsec;
 	oss_clock_t end = calcendtime(*clock, quantum);
-	reqinterval = (int)rand() % (BILLION / 4);
-	oss_clock_t nextreq = calcendtime(start, reqinterval);
+	oss_clock_t nextreq = calcendtime(start, BILLION / 4);
 
 	if (log_wait() == -1) {
 		return 1;
 	}
 	fprintf(stderr,"USER:[%ld] start:%d,%d\n",pid,start.sec,start.nsec);
-	dprintf(logf,"USER:[%ld] start:%d,%d\n",pid,start.sec,start.nsec);
+	//dprintf(logf,"USER:[%ld] start:%d,%d\n",pid,start.sec,start.nsec);
 	if (log_signal() == -1) {
 		return 1;
 	}
+
+	/************** start loop ********************/
 	do {
 
 	if (clock == NULL || table == NULL) {
@@ -165,6 +161,8 @@ main (int argc, char** argv)
 
 	/********* Get values from pxs cntl block ******/
 	
+	while (!((nextreq.sec <= clock->sec && nextreq.nsec <= clock->nsec)
+		|| (nextreq.sec < clock->sec))) {};
 
 	/**************** Child loop **************/
 	// begin looping over critical section
@@ -178,6 +176,9 @@ main (int argc, char** argv)
 		return 1;
 	}
 
+	//printf("yooooooo\n");
+	// request and address
+	int address = (int) rand() % (NUMPAGES * PAGESIZE);
 	// Block all signals during critical section
 	sigset_t newmask, oldmask; 	
 	if ((sigfillset(&newmask) == -1) ||
@@ -194,32 +195,44 @@ main (int argc, char** argv)
 		if (log_wait() == -1) {
 			return 1;
 		}
-		fprintf(stderr, "USER: %ld second up.\n", pid);
-		dprintf(logf, "USER: %ld second up.\n", pid);
+		msg = (char*)malloc(sizeof(char) * 32);
+		if (msg == NULL) {
+			perror("");
+			return 1;
+		}
+		sprintf(msg, "USER: [%ld] second up\n", pid);
+		fprintf(stderr, msg);
+		//write(logf, msg, 32);
+	//	fsync(logf);
+		free(msg);
 		if (log_signal() == -1) {
 			return 1;
 		}
 	}
+	//printf("yooo1ooo\n");
 	// request some page
 	if ((nextreq.sec <= clock->sec && nextreq.nsec <= clock->nsec)
 		|| (nextreq.sec < clock->sec)) {
-		// pick a page
-		int reqnum = (int)rand() % NUMPAGES;
-		if (requestpage(table, reqnum, pid) == -1) {
-			fprintf(stderr,"Failed to request page.\n");
+
+		if (requestpage(table, address % 256, pid) == -1) {
+			//fprintf(stderr,"Failed to request page.\n");
 		}
 		if (log_wait() == -1) {
 			return 1;
 		}
-		fprintf(stderr,"USER: %ld requests page %d.\n", pid, reqnum);
-		dprintf(logf,"USER: %ld requests page %d.\n", pid, reqnum);
+		msg = (char*)malloc(sizeof(char) * 32);
+		sprintf(msg, "USER: [%ld] request byte: %d\n",pid,address);
+		fprintf(stderr, msg);
+	//	write(logf, msg, 32);
+	//	fsync(logf);
+		free(msg);
 		if (log_signal() == -1) {
 			return 1;
 		}
-		reqinterval = (int)rand() % (BILLION / 4);
-		nextreq = calcendtime(*clock, reqinterval);
+		nextreq = calcendtime(*clock, BILLION / 4);
 
 	}
+	//printf("yoooooo2o\n");
 	/*********** Exit section **************/
 	// unlock shared memory read 
 	if (sem_signal() == -1) { 		
@@ -243,8 +256,12 @@ main (int argc, char** argv)
 			if (log_wait() == -1) {
 				return 1;
 			}
-			fprintf(stderr, "USER: Hey im done %ld\n", pid);
-			dprintf(logf, "USER: Hey im done %ld\n", pid);
+			msg = (char*)malloc(sizeof(char) * 32);
+			sprintf(msg, "USER: [%ld] I'm done.\n", pid);
+			fprintf(stderr, msg);
+			write(logf, msg, 32);
+			fsync(logf);
+			free(msg);
 			if (log_signal() == -1) {
 				return 1;
 			}
@@ -273,41 +290,6 @@ main (int argc, char** argv)
 		return 1;
 	}
 	return 0;
-}
-
-// calculates the time at which child terminates
-oss_clock_t
-calcendtime(oss_clock_t clock, int quantum)
-{
-	int s = clock.sec;
-	int ns = clock.nsec;
-	ns += quantum;
-	if (ns >= BILLION) {
-		s++;
-		ns = ns % BILLION;
-	}
-	oss_clock_t endtime;
-	endtime.sec = s;
-	endtime.nsec = ns;
-	return endtime;	
-}
-
-// calculate used cpu time
-oss_clock_t
-calcusedtime(oss_clock_t start, oss_clock_t clock)
-{
-	int s = clock.sec;
-	int ns = clock.nsec;
-	oss_clock_t usedtime;
-	if (start.sec == s) {
-		usedtime.sec = 0;
-		usedtime.nsec = ns - start.nsec;
-	} else {
-		// add support for > 1 sec	
-		usedtime.sec = 0;
-		usedtime.nsec = (BILLION - start.nsec) + clock.nsec;	
-	}
-	return usedtime;
 }
 
 oss_clock_t*

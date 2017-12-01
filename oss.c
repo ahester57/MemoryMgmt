@@ -1,6 +1,6 @@
 /*
 $Id: oss.c,v 1.3 2017/11/13 04:00:18 o1-hester Exp o1-hester $
-$Date: 2017/11/13 04:00:18 $
+	$Date: 2017/11/13 04:00:18 $
 $Revision: 1.3 $
 $Log: oss.c,v $
 Revision 1.3  2017/11/13 04:00:18  o1-hester
@@ -301,20 +301,26 @@ main (int argc, char** argv)
 		}
 
 		// The PARENT LOOP
-		int nextuser = 0;
+		oss_clock_t nextuser;
 		while (childcount < 18)
 		{
 				
 			if (childcount < 18) {
-				// wait until next scheduled time
-				while (clock->sec < nextuser){}
-				cpid = spawnchild(logf);
-				childcount++;
-				int ran = (int)(rand()) % 3;
-				nextuser += ran;
+
+				int ran = (int)(rand()) % 500000 + 100000;
 				if (ran == 0) {
 					usleep(50000);
 				}
+				nextuser = calcendtime(*clock, ran);
+				// wait until next scheduled time
+				while (!((nextuser.sec <= clock->sec &&
+					  nextuser.nsec <= clock->nsec)
+				  	|| (nextuser.sec < clock->sec)))
+			  	{};
+
+				// spawn a child
+				cpid = spawnchild(logf);
+				childcount++;
 				if (childcount == 18) {
 					break;
 				}
@@ -368,7 +374,7 @@ updateclock(oss_clock_t* clock)
 {
 	if (clock == NULL)
 		return;
-	clock->nsec += 25;
+	clock->nsec += 10;
 	if (clock->nsec >= BILLION) {
 		clock->sec += 1;
 		clock->nsec = 0;

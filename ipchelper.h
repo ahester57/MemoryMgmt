@@ -60,5 +60,7 @@ ssize_t getmessage(const int msgid, mymsg_t* msg);
 int removemsgqueue(const int msgid);
 int removeshmem(int msgid, int semid, int shmid, void* shmaddr);
 int detachandremove(const int shmid, void* shmaddr);
+oss_clock_t calcendtime(oss_clock_t clock, int quantum);
+oss_clock_t calcusedtime(oss_clock_t start, oss_clock_t clock);
 
 #endif
